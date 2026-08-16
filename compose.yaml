@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: salasar-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SALASAR_POSTGRES_DB:-salasar}
+      POSTGRES_USER: ${SALASAR_POSTGRES_USER:-salasar_app}
+      POSTGRES_PASSWORD: ${SALASAR_POSTGRES_PASSWORD:?Set SALASAR_POSTGRES_PASSWORD in .env}
+    ports:
+      - "5434:5432"
+    volumes:
+      - salasar-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  salasar-postgres-data:

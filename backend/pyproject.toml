@@ -1,0 +1,25 @@
+[project]
+name = "salasar-backend"
+version = "0.1.0"
+description = "FastAPI backend for Salasar owner and driver apps"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.116,<1.0",
+  "uvicorn[standard]>=0.35,<1.0",
+  "pydantic-settings>=2.10,<3.0",
+  "sqlalchemy>=2.0,<3.0",
+  "alembic>=1.16,<2.0",
+  "psycopg[binary]>=3.2,<4.0",
+  "python-jose[cryptography]>=3.3,<4.0",
+  "bcrypt>=5.0,<6.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 480
     cors_origins: list[str] = ["http://localhost:8081", "http://localhost:8082"]
+    local_web_origins: list[str] = []
     tata_fleet_webhook_enabled: bool = False
     tata_fleet_webhook_secret: str | None = None
     tata_fleet_allowed_ips: list[str] = []
@@ -58,7 +59,13 @@ class Settings(BaseSettings):
             raise ValueError("SALASAR_CORS_ORIGINS must list the allowed frontend origins in production")
         if any(origin.startswith("http://localhost") for origin in self.cors_origins):
             raise ValueError("SALASAR_CORS_ORIGINS cannot include localhost in production")
+        if any(not origin.startswith(("http://localhost:", "http://127.0.0.1:")) for origin in self.local_web_origins):
+            raise ValueError("SALASAR_LOCAL_WEB_ORIGINS may contain only local browser origins")
         return self
+
+    @property
+    def allowed_cors_origins(self) -> list[str]:
+        return list(dict.fromkeys([*self.cors_origins, *self.local_web_origins]))
 
 
 settings = Settings()

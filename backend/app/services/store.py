@@ -9,7 +9,13 @@ from app.db.models import Customer, DriverIssue, DriverMoneyItem, FutureOrder, O
 from app.schemas.auth import LoginRequest, MeResponse, TokenResponse
 from app.schemas.common import MoneyBreakdown
 from app.schemas.customer import CustomerDetail, CustomerOrderSummary, CustomerSummary, InvoiceShareResponse, OrderDetail
-from app.schemas.dashboard import DashboardMetric, DashboardResponse
+from app.schemas.dashboard import (
+    DashboardAttentionItem,
+    DashboardBusinessMetric,
+    DashboardMetric,
+    DashboardResponse,
+    DashboardSummaryCard,
+)
 from app.schemas.driver import DriverHomeResponse, DriverIssueCreate, DriverIssueResponse, DriverMoneyItem as DriverMoneyItemSchema, DriverMoneyResponse, DriverProfile, DriverTripCard
 from app.schemas.goods import FutureOrderCard, GoodsCustomerCard, GoodsOverviewResponse, GoodsTruckCard
 from app.schemas.trip import TripDetail
@@ -39,6 +45,9 @@ def get_dashboard(db: Session) -> DashboardResponse:
     active_count = sum(1 for trip in trips if trip.status in {"active", "loading"})
     delayed_count = sum(1 for trip in trips if trip.status == "delayed")
     idle_count = sum(1 for vehicle in vehicles if vehicle.state in {"idle", "available"})
+    completed_count = sum(1 for trip in trips if trip.status == "completed")
+    order_count = db.query(Order).count()
+    attention_count = int(bool(partial_orders)) + int(bool(delayed_count)) + int(bool(idle_count))
     return DashboardResponse(
         active_trips=str(active_count),
         delayed_trips=str(delayed_count),
@@ -49,7 +58,58 @@ def get_dashboard(db: Session) -> DashboardResponse:
             DashboardMetric(label="Completed", value="19", hint="This week"),
             DashboardMetric(label="Driver issues", value=str(db.query(DriverIssue).count()), hint="Need follow-up"),
         ],
+        greeting_name="Rachit",
+        summary_cards=[
+            DashboardSummaryCard(label="Today's sales", value="₹1.84L", hint="↑ 12% vs yesterday", icon="shopping_bag", tone="green"),
+            DashboardSummaryCard(label="Cash available", value="₹3.26L", hint="Bank + cash", icon="wallet", tone="orange"),
+            DashboardSummaryCard(label="To collect", value=_sum_money(order.remaining_amount for order in partial_orders), hint=f"{len(partial_orders)} customers", icon="receipt", tone="red"),
+            DashboardSummaryCard(label="To pay", value="₹1.12L", hint="Suppliers + dues", icon="credit_card", tone="purple"),
+        ],
+        protection_count=attention_count,
+        protection_amount=_sum_money(order.remaining_amount for order in partial_orders),
+        attention_items=[
+            DashboardAttentionItem(
+                title=f"{_sum_money(order.remaining_amount for order in partial_orders)} overdue",
+                detail=f"{len(partial_orders)} customers · payment follow-up",
+                action="Follow up",
+                icon="alert",
+                tone="red",
+            ),
+            DashboardAttentionItem(
+                title="Supplier payment due",
+                detail="₹42,000 · due tomorrow",
+                action="Pay now",
+                icon="rupee",
+                tone="orange",
+            ),
+            DashboardAttentionItem(
+                title=f"{active_count} truck{'s' if active_count != 1 else ''} on active trips",
+                detail="Live Tata location available",
+                action="View fleet",
+                icon="truck",
+                tone="blue",
+            ),
+            DashboardAttentionItem(
+                title=f"{delayed_count} dispatch delayed",
+                detail="Review the pending route and driver",
+                action="Resolve",
+                icon="clock",
+                tone="purple",
+            ),
+        ],
+        business_metrics=[
+            DashboardBusinessMetric(label="Orders received", value=str(order_count), hint="New and active orders", icon="clipboard", tone="blue"),
+            DashboardBusinessMetric(label="Supplier purchases", value="₹92K", hint="2 suppliers", icon="cart", tone="green"),
+            DashboardBusinessMetric(label="Dispatch / loading", value=str(active_count), hint=f"{delayed_count} delayed", icon="truck", tone="orange"),
+            DashboardBusinessMetric(label="Deliveries", value=str(completed_count), hint="Completed trips", icon="delivery", tone="teal"),
+            DashboardBusinessMetric(label="Collections today", value="₹48K", hint=f"{payments_remaining_label(_sum_money(order.remaining_amount for order in partial_orders))} still due", icon="rupee", tone="purple"),
+            DashboardBusinessMetric(label="Fleet utilisation", value="83%", hint=f"{active_count} loaded · {idle_count} idle", icon="gauge", tone="blue"),
+        ],
     )
+
+
+def payments_remaining_label(value: str) -> str:
+    return value if value and value != "₹0" else "No payments"
 
 
 def list_trips(db: Session) -> list[TripDetail]:

@@ -1,4 +1,5 @@
 import hashlib
+from ipaddress import ip_address
 import json
 import secrets
 from typing import Any, Annotated
@@ -24,7 +25,22 @@ def _require_tata_fleet_enabled() -> str:
     return settings.tata_fleet_webhook_secret
 
 
-def _authenticate(secret: str, authorization: str | None, webhook_token: str | None) -> None:
+def _client_ip(request: Request) -> str | None:
+    candidate = request.headers.get("x-real-ip")
+    if not candidate and request.client:
+        candidate = request.client.host
+    if not candidate:
+        return None
+    try:
+        return str(ip_address(candidate.strip()))
+    except ValueError:
+        return None
+
+
+def _authenticate(request: Request, secret: str, authorization: str | None, webhook_token: str | None) -> None:
+    if _client_ip(request) in settings.tata_fleet_allowed_ips:
+        return
+
     bearer_token = None
     if authorization:
         scheme, _, credentials = authorization.partition(" ")
@@ -70,7 +86,7 @@ def tata_fleet_push_status() -> dict[str, str]:
 @router.post(
     "/tata-fleet/push",
     response_model=TataFleetPushResponse,
-    status_code=status.HTTP_202_ACCEPTED,
+    status_code=status.HTTP_200_OK,
 )
 async def receive_tata_fleet_push(
     request: Request,
@@ -80,7 +96,7 @@ async def receive_tata_fleet_push(
     x_delivery_id: Annotated[str | None, Header(alias="X-Delivery-Id")] = None,
 ) -> TataFleetPushResponse:
     webhook_secret = _require_tata_fleet_enabled()
-    _authenticate(webhook_secret, authorization, x_webhook_token)
+    _authenticate(request, webhook_secret, authorization, x_webhook_token)
 
     content_length = request.headers.get("content-length")
     if content_length and content_length.isdigit() and int(content_length) > settings.tata_fleet_max_payload_bytes:

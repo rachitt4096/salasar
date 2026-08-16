@@ -40,9 +40,10 @@ Enable the receiver and configure a unique shared secret:
 ```dotenv
 SALASAR_TATA_FLEET_WEBHOOK_ENABLED=true
 SALASAR_TATA_FLEET_WEBHOOK_SECRET=<at-least-32-random-characters>
+SALASAR_TATA_FLEET_ALLOWED_IPS=["3.6.12.131"]
 ```
 
-Ask Tata to send the secret either as `Authorization: Bearer <secret>` or `X-Webhook-Token: <secret>`. An optional `X-Delivery-Id` enables vendor-supplied idempotency; otherwise, the backend deduplicates identical payloads by SHA-256. The receiver accepts a JSON object or array, stores the complete source payload, rejects deliveries larger than 1 MiB by default, and responds with `202 Accepted`.
+FleetEdge's documented source IP is allowed using Railway's trusted `X-Real-IP` header. The secret remains available for controlled testing through either `Authorization: Bearer <secret>` or `X-Webhook-Token: <secret>`. An optional `X-Delivery-Id` enables vendor-supplied idempotency; otherwise, the backend deduplicates identical payloads by SHA-256. The receiver accepts a JSON object or array, stores the complete source payload, rejects deliveries larger than 1 MiB by default, and responds with `200 OK` as required by FleetEdge's Basic Push specification.
 
 ## Suggested next steps
 

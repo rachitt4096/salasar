@@ -1,3 +1,5 @@
+from ipaddress import ip_address
+
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -14,6 +16,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:8081", "http://localhost:8082"]
     tata_fleet_webhook_enabled: bool = False
     tata_fleet_webhook_secret: str | None = None
+    tata_fleet_allowed_ips: list[str] = []
     tata_fleet_max_payload_bytes: int = 1_048_576
 
     model_config = SettingsConfigDict(
@@ -32,6 +35,11 @@ class Settings(BaseSettings):
         if value.startswith("postgresql://"):
             return value.replace("postgresql://", "postgresql+psycopg://", 1)
         return value
+
+    @field_validator("tata_fleet_allowed_ips")
+    @classmethod
+    def validate_tata_fleet_allowed_ips(cls, values: list[str]) -> list[str]:
+        return [str(ip_address(value)) for value in values]
 
     @model_validator(mode="after")
     def validate_production_settings(self) -> "Settings":
